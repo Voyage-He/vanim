@@ -1,0 +1,11 @@
+/node_modules
+/imgs
+/src/js
+/src/main.ts
+
+*.js
+
+
+*.mp4
+*.jpg
+*.png
