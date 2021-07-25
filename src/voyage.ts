@@ -1,8 +1,8 @@
-import { Geometry, Arc } from "./element"
+import { Geometry, Arc, Element } from "./element"
 import { Group, Screen } from "./group"
 import { PenPoint } from "./point"
-import { bezier, arc2Bezier } from './utils'
+import { bezier } from './utils'
 
 export {
-    Geometry,Group, Screen, PenPoint, bezier, arc2Bezier, Arc
+    Geometry,Group, Screen, PenPoint, bezier, Arc, Element
 }

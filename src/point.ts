@@ -1,34 +1,44 @@
-import {Stat, value} from './utils'
+import {Vel, value} from './utils'
 
 class Point {
-    x:number=0;y:number=0
-    _x:number; _y:number
-    constructor(x:number, y:number){
-        this._x = x
-        this._y = y
+    // TODO inefficient due to resetting 't' of every point from Screen
+    t:number = 0
+
+    private _x:Vel = 0
+    set x(x:Vel){this._x = x}
+    get x(): number{return value(this._x, this.t)}
+
+    private _y:Vel = 0
+    set y(y:Vel){this._y = y}
+    get y(): number{return value(this._y, this.t)}
+
+    constructor(x:Vel=0, y:Vel=0){
+        this.x = x
+        this.y = y
     }
 
-    compute(t:number, x:Stat, y:Stat){
-        this.x = this._x
-        this.y = this._y
-        this.x = value(this.x, t)
-        this.y = value(this.y, t)
-        this.x += value(x, t)
-        this.y += value(y, t)
-    }
-
-    scale(s:number){
-        this.x *= s
-        this.y *= s
+    transform(p:Point, duration:number, func: (t:number)=>number){
+        this.x = (t:number)=>{
+            t /= duration
+            return (p.x - this.x) * func(t) + this.x
+        }
     }
 }
 
 class PenPoint {
+    private _t:number
+    set t(t:number){
+        this._t = t
+        this.p.t = t
+        this.c1.t = t
+        this.c2.t = t
+    }
+    get t(){return this._t}
+
     p:Point
     c1:Point
     c2:Point
-    constructor(x:number, y:number, x1?:number, y1?:number, x2?:number, y2?:number){
-        // console.log(arguments)
+    constructor(x:Vel, y:Vel, x1?:Vel, y1?:Vel, x2?:Vel, y2?:Vel){
         this.p = new Point(x, y)
         if (arguments.length == 2) {
             this.c1 = new Point(x, y)
@@ -43,20 +53,7 @@ class PenPoint {
                 this.c1 = new Point(x1, y1)
                 this.c2 = new Point(x2, y2)
             }
-        } else throw '111'
-    }
-
-    compute(t:number, x:Stat, y:Stat){
-        this.p.compute(t, x, y)
-        this.c1.compute(t, x, y)
-        this.c2.compute(t, x, y)
-        // console.log(this)
-    }
-
-    scale(s:number){
-        this.p.scale(s)
-        this.c1.scale(s)
-        this.c2.scale(s)
+        } else throw 'illegal params'
     }
 }
 

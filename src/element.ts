@@ -1,103 +1,107 @@
 import {CanvasRenderingContext2D as Ctx} from 'canvas'
-import { ENFILE } from 'constants'
-import { start } from 'repl'
-import { PenPoint } from './point'
-import { value, arc2Bezier, Stat } from './utils'
+import { Point, PenPoint } from './point'
+import { value, Vel } from './utils'
 
 abstract class Element {
-    x:Stat
-    y:Stat
-    _x
-    _y
-    // computed: boolean = false
-    constructor(x:Stat=0, y:Stat=0){
-        this._x = x
-        this._y = y
-        // this.computed = false
-    }
-
-    compute(time: number){
-        this.x = this._x
-        this.y = this._y
-        this.x = value(this.x, time)
-        this.y = value(this.y, time)
-    }
-
-    scale(scale: number){
-        this.x = <number>this.x * scale
-        this.y = <number>this.y * scale
+    _t:number
+    abstract t:number
+    pos: Point          // absolute position of anchor point
+    
+    constructor(pos:Point){
+        this.pos = pos
     }
 
     abstract paint(ctx:Ctx):void
 }
 
 class Geometry extends Element{
-    fill:boolean = false
-    _fill:boolean = false
+    set t(t:number){
+        this._t = t
+        for(let i of this.pen_points){
+            i.t = t
+        }
+    }
+    get t(){return this._t}
+
     pen_points:PenPoint[] = []
-    constructor(x:Stat, y:Stat){
-        super(x, y)
-    }
 
-    addPenPoint(pps: PenPoint[]){
-        for (let i of pps) this.pen_points.push(i)
-    }
+    private _line_width:Vel = 0.1
+    set line_width(line_width:Vel){this._line_width = line_width}
+    get line_width(): number{return value(this._line_width, this.t)}
 
-    compute(time:number){
-        super.compute(time)
-        this.fill = this._fill
+    private _fill:Vel = false
+    set fill(fill:Vel){this._fill = fill}
+    get fill(): number{return value(this._fill, this.t)}
+    
+    private _color:Vel = '#000000'
+    set color(color:Vel){this._color = color}
+    get color(): number{return value(this._color, this.t)}
+    
+    constructor(x:Vel, y:Vel){ super(new Point(x, y)) }
 
-        for (let pen_point of this.pen_points) {
-            pen_point.compute(time, this._x, this._y)
-        }
-    }
-
-    scale(scale:number){
-        super.scale(scale)
-        for (let pen_point of this.pen_points) {
-            pen_point.scale(scale)
-        }
-    }
+    // addPenPoints(pps: PenPoint[]){
+    //     for (let i of pps) this.pen_points.push(i)
+    // } 这个竟然没用到??
 
     paint(ctx:Ctx){
-        // if (this.fill) ctx.fillStyle = 'black'
-        // else ctx.strokeStyle = 'black'
-        ctx.lineWidth = 0.1
+        ctx.lineWidth = this.line_width
         ctx.beginPath()
         ctx.moveTo(this.pen_points[0].p.x, this.pen_points[0].p.y)
-        // console.log(this.pen_points[0].p.x/120, this.pen_points[0].p.y/120)
         for (let i = 0, l = this.pen_points.length; i < l-1 ;i++) {
             let now = this.pen_points[i]
             let next = this.pen_points[i+1]
             ctx.bezierCurveTo(now.c2.x, now.c2.y, next.c1.x, next.c1.y, next.p.x, next.p.y)
-            // console.log(now.c2.x/120, now.c2.y/120, next.c1.x/120, next.c1.y/120, next.p.x/120, next.p.y/120)
         }
         if (this.fill) { ctx.fillStyle = 'black'; ctx.fill() }
-        else { ctx.strokeStyle = 'black'; ctx.stroke()}
+        else { ctx.strokeStyle = 'white'; ctx.stroke()}
     }
 }
 
+class Squre extends Geometry {
+    
+}
+
 class Arc extends Geometry {
-    r
-    _r:Stat
-    start_angel
-    _start_angel:Stat
-    end_angel
-    _end_angel:Stat
-    constructor(x:Stat, y:Stat, r:Stat, start_angrl:Stat, end_angel:Stat){
+    center: Point
+    r: Vel
+    start_angel: Vel
+    end_angel: Vel
+    constructor(x:Vel=0, y:Vel=0, r:Vel=0, start_angrl:Vel=0, end_angel:Vel=0){
         super(x, y)
+        this.center = new Point(x, y)
         this.r = r
         this.start_angel = start_angrl
         this.end_angel = end_angel
-        
     }
+
+    static arc2Bezier(x:number, y:number, r:number, start_angel:number, end_angel:number):PenPoint[]{
+        if (end_angel - start_angel <= Math.PI/2) {
+            let x0 = x + Math.cos(start_angel)*r
+            let y0 = y + Math.sin(start_angel)*r
+            let x3 = x + Math.cos(end_angel)*r
+            let y3 = y + Math.sin(end_angel)*r
+            let h = 4/3*Math.tan((end_angel-start_angel)/4)
+            let x1 = x0 - h*(y0-y)
+            let y1 = y0 + h*(x0-x)
+            let x2 = x3 + h*(y3-y)
+            let y2 = y3 - h*(x3-x)
+            return [new PenPoint(x0, y0, x0, y0, x1, y1), new PenPoint(x3, y3, x2, y2)]
+        } else {
+            let pps:PenPoint[] = Arc.arc2Bezier(x, y, r, start_angel, start_angel + Math.PI/2)
+            let l = Arc.arc2Bezier(x, y, r, start_angel + Math.PI/2, end_angel)
+            pps[pps.length-1].c2.x = l[0].c2.x
+            pps[pps.length-1].c2.y = l[0].c2.y
+            for (let i = 1;i<l.length;i++){
+                pps.push(l[i])
+            }
+            return pps
+        }
+    
+    }
+
     compute(t:number) {
-        this._r = this.r
-        this._start_angel = this.start_angel
-        this._end_angel = this.end_angel
-        let pps = arc2Bezier(0, 0, value(this._r, t), value(this._start_angel, t), value(this._end_angel, t))
+        let pps = Arc.arc2Bezier(0, 0, value(this.r, t), value(this.start_angel, t), value(this.end_angel, t))
         this.pen_points = pps
-        super.compute(t)
     }
 }
 

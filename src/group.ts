@@ -2,8 +2,18 @@ import {createCanvas, CanvasRenderingContext2D as Ctx} from 'canvas'
 import {writeFileSync} from 'fs'
 import {Element} from './element'
 
+
 class Group {
     children:Element[] = []
+
+    private _t:number
+    set t(t:number){
+        this._t = t
+        for(let i of this.children){
+            i.t = t
+        }
+    }
+    get t(){return this._t}
 
     add(...element: Element[]){
         for (let i of element) {
@@ -15,57 +25,42 @@ class Group {
         this.children.splice(this.children.indexOf(element),1)
     }
 
-    compute(time:number){
-        for (let i of this.children) {
-            i.compute(time)
-        }
-    }
-
-    scale(scale:number){
-        for (let i of this.children) {
-            i.scale(scale)
-        }
-    }
 }
 
 class Screen extends Group {
-    width:number=0
-    _width:number
-    height:number=0
-    _height:number
+    width:number
+    height:number
     ctx:Ctx
-    constructor(width:number, height:number){
+    constructor(width:number=1920, height:number=1080){
         super()
-        this._width = width
-        this._height = height
-    }
-
-    compute(time:number){
-        super.compute(time)
-        this.width = this._width
-        this.height = this._height
+        this.width = width
+        this.height = height
     }
 
     scale(scale:number){
         this.width *= scale
         this.height *= scale
-        // super.scale(scale)
     }
 
     paint(){
-        this.ctx = createCanvas(this.width, this.height).getContext('2d')
+        if (!(this.ctx instanceof Ctx)){
+            console.log(1)
+            this.ctx = createCanvas(this.width, this.height).getContext('2d')
+            this.ctx.scale(120, 120)
+        }
         
-        this.ctx.fillStyle = 'white'
-        this.ctx.fillRect(0, 0, this.width, this.height)
-        // this.ctx.lineWidth = 1/120
-        this.ctx.scale(120, 120)
+
+        // background
+        this.ctx.fillStyle = 'black'
+        this.ctx.fillRect(0, 0, 1920, 1080)
+        
         for(let i of this.children){
             i.paint(this.ctx)
         }
     }
 
     renderFrame(time=0, scale=1, output="./test.png"){
-        this.compute(time)
+        this.t = time
         this.scale(scale)
         this.paint()
         writeFileSync(output, this.ctx.canvas.toBuffer('image/jpeg'))
