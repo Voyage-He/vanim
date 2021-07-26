@@ -2,6 +2,7 @@
 /imgs
 /src/js
 /src/main.ts
+/watch.js
 
 *.js
 

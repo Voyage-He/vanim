@@ -3,7 +3,7 @@ import { Point, PenPoint } from './point'
 import { value, Vel } from './utils'
 
 abstract class Element {
-    _t:number
+    _t:number = 0
     abstract t:number
     pos: Point          // absolute position of anchor point
     
@@ -15,8 +15,13 @@ abstract class Element {
 }
 
 class Geometry extends Element{
+    // the pen_points of its derived class will be generated automatically according to geometric params(radius, side length...)
+    // transforming ensure pen_points automatically generated won't be influenced
+    private transforming:boolean = false
+
     set t(t:number){
         this._t = t
+        this.compute()
         for(let i of this.pen_points){
             i.t = t
         }
@@ -39,7 +44,9 @@ class Geometry extends Element{
     
     constructor(x:Vel, y:Vel){ super(new Point(x, y)) }
 
-    // addPenPoints(pps: PenPoint[]){
+    compute(){}
+
+    // addPenPoints(...pps: PenPoint[]){
     //     for (let i of pps) this.pen_points.push(i)
     // } 这个竟然没用到??
 
@@ -57,24 +64,51 @@ class Geometry extends Element{
     }
 }
 
+class Line extends Geometry {
+    constructor(x, y, length, angle){
+        super(x, y)
+    }
+}
+
 class Squre extends Geometry {
-    
+    center: Point       //
+
+    private _width:Vel = 1
+    set width(width:Vel){this._width = width}
+    get width(): number{return value(this._width, this.t)}
+
+    private _height:Vel = 1
+    set height(height:Vel){this._height = height}
+    get height(): number{return value(this._height, this.t)}
+
+
 }
 
 class Arc extends Geometry {
     center: Point
-    r: Vel
-    start_angel: Vel
-    end_angel: Vel
-    constructor(x:Vel=0, y:Vel=0, r:Vel=0, start_angrl:Vel=0, end_angel:Vel=0){
+
+    private _r:Vel = 1
+    set r(r:Vel){this._r = r; this.compute()}
+    get r(): number{return value(this._r, this.t)}
+    
+    private _start_angle:Vel = 0
+    set start_angle(start_angle:Vel){this._start_angle = start_angle; this.compute()}
+    get start_angle(): number{return value(this._start_angle, this.t)}
+    
+    private _end_angle:Vel = 2*Math.PI
+    set end_angle(end_angle:Vel){this._end_angle = end_angle; this.compute()}
+    get end_angle(): number{return value(this._end_angle, this.t)}
+
+    constructor(x:Vel=0, y:Vel=0, r:Vel=0, start_angle:Vel=0, end_angel:Vel=2*Math.PI){
         super(x, y)
         this.center = new Point(x, y)
         this.r = r
-        this.start_angel = start_angrl
-        this.end_angel = end_angel
+        this.start_angle = start_angle
+        this.end_angle = end_angel
     }
 
-    static arc2Bezier(x:number, y:number, r:number, start_angel:number, end_angel:number):PenPoint[]{
+    
+    private arcData2PenPoint(x:number, y:number, r:number, start_angel:number, end_angel:number):PenPoint[]{
         if (end_angel - start_angel <= Math.PI/2) {
             let x0 = x + Math.cos(start_angel)*r
             let y0 = y + Math.sin(start_angel)*r
@@ -87,8 +121,8 @@ class Arc extends Geometry {
             let y2 = y3 - h*(x3-x)
             return [new PenPoint(x0, y0, x0, y0, x1, y1), new PenPoint(x3, y3, x2, y2)]
         } else {
-            let pps:PenPoint[] = Arc.arc2Bezier(x, y, r, start_angel, start_angel + Math.PI/2)
-            let l = Arc.arc2Bezier(x, y, r, start_angel + Math.PI/2, end_angel)
+            let pps:PenPoint[] = this.arcData2PenPoint(x, y, r, start_angel, start_angel + Math.PI/2)
+            let l = this.arcData2PenPoint(x, y, r, start_angel + Math.PI/2, end_angel)
             pps[pps.length-1].c2.x = l[0].c2.x
             pps[pps.length-1].c2.y = l[0].c2.y
             for (let i = 1;i<l.length;i++){
@@ -99,10 +133,7 @@ class Arc extends Geometry {
     
     }
 
-    compute(t:number) {
-        let pps = Arc.arc2Bezier(0, 0, value(this.r, t), value(this.start_angel, t), value(this.end_angel, t))
-        this.pen_points = pps
-    }
+    compute() { this.pen_points = this.arcData2PenPoint(this.center.x, this.center.y, this.r,this.start_angle, this.end_angle) }
 }
 
 export {Element, Geometry, Arc}

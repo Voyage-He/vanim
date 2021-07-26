@@ -1,7 +1,5 @@
-import { PenPoint } from "./point"
-
 // consider it as velocity because it times time equals distance
-type Vel = any | ((t:any)=>any)
+type Vel = any | ((t:number)=>any)
 
 function value(s: Vel, t: number): number {
     if (s instanceof Function){
